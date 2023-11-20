@@ -15,6 +15,8 @@ unsigned int Locals[256][256];
 unsigned int StackPtr;
 unsigned int PC, DEPTH;
 
+// TODO: global_setを書く
+
 void global_get ( void )
 {
   unsigned int gnum;
