@@ -15,7 +15,15 @@ unsigned int Locals[256][256];
 unsigned int StackPtr;
 unsigned int PC, DEPTH;
 
-// TODO: global_setを書く
+void global_set ( void )
+{
+  unsigned int gnum;
+
+  gnum = IMEM[PC++];
+  Globals[gnum] = Stack[StackPtr--];
+
+  return;
+}
 
 void global_get ( void )
 {
