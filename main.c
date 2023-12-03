@@ -9,6 +9,7 @@
 #define I32_CONST  0x41
 #define I32_STORE  0x36
 #define I32_SUB    0x6B
+#define CALL       0x10
 
 unsigned char IMEM[1024]; /* instruction memory */
 unsigned char DMEM[1024]; /* data memory */
@@ -155,6 +156,15 @@ void i32_store ( void )
   return;
 }
 
+void call ( void )
+{
+  unsigned int funcidx;
+
+  funcidx = leb128();
+  printf ( "funcidx = %d\n", funcidx );
+
+  return;
+}
 
 void execute ( void )
 {
@@ -192,6 +202,10 @@ void execute ( void )
   case I32_SUB:
     printf ("i32.sub\n");
     i32_sub ( );
+    break;
+  case CALL:
+    printf ("call\n");
+    call ( );
     break;
   default:
     printf ( "Undefined Instruction: 0x%2x\n", inst );
