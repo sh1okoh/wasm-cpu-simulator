@@ -8,6 +8,7 @@
 #define LOCAL_SET  0x21
 #define I32_CONST  0x41
 #define I32_STORE  0x36
+#define I32_LOAD   0x28
 #define I32_SUB    0x6B
 #define CALL       0x10
 
@@ -210,6 +211,10 @@ void execute ( void )
   case I32_STORE:
     printf ("i32.store\n");
     i32_store ( );
+    break;
+  case I32_LOAD:
+    printf ("i32.load\n");
+    i32_load ( );
     break;
   case I32_SUB:
     printf ("i32.sub\n");
