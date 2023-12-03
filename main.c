@@ -11,12 +11,13 @@
 #define I32_SUB    0x6B
 #define CALL       0x10
 
+typedef void (*FunctionPointer)();
+FunctionPointer Funcs[10];
 unsigned char IMEM[1024]; /* instruction memory */
 unsigned char DMEM[1024]; /* data memory */
 unsigned int Stack[1024];
 unsigned int Globals[256]={1024}; /* g0 = 1024 */
 unsigned int Locals[256][256];
-unsigned int Funcs[256];
 unsigned int StackPtr;
 unsigned int PC, DEPTH;
 
@@ -161,8 +162,6 @@ void i32_store ( void )
   return;
 }
 
-// funcメモリに関数を登録する
-// funcメモリから該当の関数呼び出す
 void register_func ( void )
 {
   Funcs[1] = func1;
@@ -171,10 +170,11 @@ void register_func ( void )
 void call ( void )
 {
   unsigned int funcidx;
-
-  funcidx = leb128();
-  printf ( "funcidx = %d\n", funcidx );
-
+  void (*target_func)(void);
+  funcidx = IMEM[PC++];
+  target_func = Funcs[funcidx];
+  printf ( "call func%d\n", funcidx );
+  target_func();
   return;
 }
 
