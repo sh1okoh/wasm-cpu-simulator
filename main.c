@@ -16,8 +16,13 @@ unsigned char DMEM[1024]; /* data memory */
 unsigned int Stack[1024];
 unsigned int Globals[256]={1024}; /* g0 = 1024 */
 unsigned int Locals[256][256];
+unsigned int Funcs[256];
 unsigned int StackPtr;
 unsigned int PC, DEPTH;
+
+void func1 ( void ) {
+  printf ( "call func1\n" );
+}
 
 void global_set ( void )
 {
@@ -155,6 +160,13 @@ void i32_store ( void )
 
   return;
 }
+
+// funcメモリに関数を登録する
+// funcメモリから該当の関数呼び出す
+void register_func ( void )
+{
+  Funcs[1] = func1;
+} 
 
 void call ( void )
 {
