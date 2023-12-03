@@ -170,6 +170,7 @@ void register_func ( void )
 
 void call ( void )
 {
+  // TODO: stackの先頭から引数の数だ取得する
   unsigned int funcidx;
   void (*target_func)(void);
   funcidx = IMEM[PC++];
