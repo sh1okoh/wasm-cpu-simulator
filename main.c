@@ -11,9 +11,17 @@
 #define I32_LOAD   0x28
 #define I32_SUB    0x6B
 #define CALL       0x10
+#define BLOCK      0x02
 
-typedef void (*FunctionPointer)();
-FunctionPointer Funcs[10];
+#define MAXDEPTH    256
+#define MAXBLEVEL   100
+
+#define MAXPC      4096
+
+//typedef void (*FunctionPointer)();
+//FunctionPointer Funcs[10];
+unsigned int  TYPES[10][2]; /* 0:# of arguments, 1:# of return vals */
+unsigned int  Funcs[10];
 unsigned char IMEM[1024]; /* instruction memory */
 unsigned char DMEM[1024]; /* data memory */
 unsigned int Stack[1024];
@@ -22,9 +30,9 @@ unsigned int Locals[256][256];
 unsigned int StackPtr;
 unsigned int PC, DEPTH;
 
-void func1 ( void ) {
-  printf ( "call func1\n" );
-}
+unsigned int ENDINFO[MAXPC];   /* ENDINFO[start] = end */
+unsigned int BLEVEL[MAXDEPTH]; /* BLEVEL[DEPTH] = 0->1->2->3 */
+unsigned int BINFO[MAXDEPTH][MAXBLEVEL][2]; /* [0]:start, [1]:end */
 
 void global_set ( void )
 {
@@ -163,20 +171,62 @@ void i32_store ( void )
   return;
 }
 
-void register_func ( void )
+void register_info ( void )
 {
-  Funcs[1] = func1;
+  Funcs[1] = 0;
+  TYPES[1][0] = 1;
+  TYPES[1][1] = 1;
+
+  Funcs[2] = 303;
+  TYPES[2][0] = 1;
+  TYPES[2][1] = 1;
+
+  Funcs[3] = 443;
+  TYPES[3][0] = 0;
+  TYPES[3][1] = 1;
+
+  ENDINFO[33] = 51;
+  ENDINFO[90] = 109;
+  ENDINFO[146] = 275;
+  ENDINFO[144] = 277;
+  ENDINFO[31] = 292;
+  ENDINFO[340] = 430;
+  ENDINFO[338] = 432;
 } 
 
 void call ( void )
 {
-  // TODO: stackの先頭から引数の数だ取得する
   unsigned int funcidx;
-  void (*target_func)(void);
+  int i;
+
+  /* TODO: record the return address */
+  DEPTH += 1;
+
+  BLEVEL[DEPTH] = 0; /* unnecessary? */
+
   funcidx = IMEM[PC++];
-  target_func = Funcs[funcidx];
-  printf ( "call func%d\n", funcidx );
-  target_func();
+
+  for ( i=0; i<TYPES[funcidx][0]; i++ ) {
+    Locals[DEPTH][i] = Stack[StackPtr--];
+  }
+
+  PC = Funcs[funcidx];
+
+  printf ( "call func %d\n", funcidx );
+
+  return;
+}
+
+void block ( void )
+{
+  unsigned char blocktype;
+
+  blocktype = IMEM[PC++];
+
+  BLEVEL[DEPTH] += 1; /* 0->1->2->3 */
+  BINFO[DEPTH][BLEVEL[DEPTH]][0] = PC; /* [0]:start */
+  BINFO[DEPTH][BLEVEL[DEPTH]][1] = ENDINFO[PC]; /* [1]:end */
+
   return;
 }
 
@@ -186,49 +236,55 @@ void execute ( void )
 
   while(1) {
 
-  inst = IMEM[PC++];
+    printf ( "PC=%3d\t", PC );
 
-  switch ( inst ) {
-  case GLOBAL_GET:
-    printf ("global.get\n");
-    global_get ( );
-    break;
-  case GLOBAL_SET:
-    printf ("global.set\n");
-    global_set ( );
-    break;
-  case LOCAL_GET:
-    printf ("local.get\n");
-    local_get ( );
-    break;
-  case LOCAL_SET:
-    printf ("local.set\n");
-    local_set ( );
-    break;
-  case I32_CONST:
-    printf ("i32.const\n");
-    i32_const ( );
-    break;
-  case I32_STORE:
-    printf ("i32.store\n");
-    i32_store ( );
-    break;
-  case I32_LOAD:
-    printf ("i32.load\n");
-    i32_load ( );
-    break;
-  case I32_SUB:
-    printf ("i32.sub\n");
-    i32_sub ( );
-    break;
-  case CALL:
-    printf ("call\n");
-    call ( );
-    break;
-  default:
-    printf ( "Undefined Instruction: 0x%2x\n", inst );
-    exit (0);
-  }
+    inst = IMEM[PC++];
+
+    switch ( inst ) {
+    case GLOBAL_GET:
+      printf ("global.get\n");
+      global_get ( );
+      break;
+    case GLOBAL_SET:
+      printf ("global.set\n");
+      global_set ( );
+      break;
+    case LOCAL_GET:
+      printf ("local.get\n");
+      local_get ( );
+      break;
+    case LOCAL_SET:
+      printf ("local.set\n");
+      local_set ( );
+      break;
+    case I32_CONST:
+      printf ("i32.const\n");
+      i32_const ( );
+      break;
+    case I32_STORE:
+      printf ("i32.store\n");
+      i32_store ( );
+      break;
+    case I32_LOAD:
+      printf ("i32.load\n");
+      i32_load ( );
+      break;
+    case I32_SUB:
+      printf ("i32.sub\n");
+      i32_sub ( );
+      break;
+    case CALL:
+      printf ("call\n");
+      call ( );
+      break;
+    case BLOCK:
+      printf ("block\n");
+      block ( );
+      break;
+    default:
+      printf ( "Undefined Instruction: 0x%2x\n", inst );
+      exit (0);
+    }
   }
 
   return;
@@ -258,7 +314,16 @@ int main ( int argc, char *argv[] )
     buf[2] = 0;
     sscanf ( buf, "%x", &c );
     IMEM[i] = (unsigned char)c;
+
   }
+
+  /* func 1(size:306-3=303):   0 - 302 */
+  /* func 2(size:143-3=140): 303 - 442 */
+  /* func 3(size:110-3=107): 443 - 549 */
+
+  register_info ( );
+
+  PC = Funcs[3];
 
   execute ();
 
