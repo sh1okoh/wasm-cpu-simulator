@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Next: "loop" */
+
 #define GLOBAL_GET 0x23
 #define GLOBAL_SET 0x24
 #define LOCAL_GET  0x20
@@ -10,8 +12,12 @@
 #define I32_STORE  0x36
 #define I32_LOAD   0x28
 #define I32_SUB    0x6B
+#define I32_EQ     0x46
+#define I32_EQZ    0x45
+#define I32_AND    0x71
 #define CALL       0x10
 #define BLOCK      0x02
+#define BR_IF      0x0d
 
 #define MAXDEPTH    256
 #define MAXBLEVEL   100
@@ -32,7 +38,7 @@ unsigned int PC, DEPTH;
 
 unsigned int ENDINFO[MAXPC];   /* ENDINFO[start] = end */
 unsigned int BLEVEL[MAXDEPTH]; /* BLEVEL[DEPTH] = 0->1->2->3 */
-unsigned int BINFO[MAXDEPTH][MAXBLEVEL][2]; /* [0]:start, [1]:end */
+unsigned int BINFO[MAXDEPTH][MAXBLEVEL][3]; /* [0]:start, [1]:end, [2]:block(0) or loop(1) */
 
 void global_set ( void )
 {
@@ -128,6 +134,46 @@ void i32_sub ( void )
   return;
 }
 
+void i32_and ( void )
+{
+  int x, y;
+
+  x = Stack[StackPtr--];
+  y = Stack[StackPtr--];
+  Stack[++StackPtr] = y & x;
+
+  return;
+}
+
+void i32_eq ( void )
+{
+  int x, y;
+
+  x = Stack[StackPtr--];
+  y = Stack[StackPtr--];
+
+  if ( x == y )
+    Stack[++StackPtr] = 1;
+  else
+    Stack[++StackPtr] = 0;
+
+  return;
+}
+
+void i32_eqz ( void )
+{
+  int x;
+
+  x = Stack[StackPtr--];
+
+  if ( x == 0 )
+    Stack[++StackPtr] = 1;
+  else
+    Stack[++StackPtr] = 0;
+
+  return;
+}
+
 void i32_load ( void )
 {
   unsigned int ea, i, offset, align;
@@ -189,7 +235,7 @@ void register_info ( void )
   ENDINFO[90] = 109;
   ENDINFO[146] = 275;
   ENDINFO[144] = 277;
-  ENDINFO[31] = 292;
+  ENDINFO[31] = 292;  /* inst at PC=29 */
   ENDINFO[340] = 430;
   ENDINFO[338] = 432;
 } 
@@ -226,6 +272,26 @@ void block ( void )
   BLEVEL[DEPTH] += 1; /* 0->1->2->3 */
   BINFO[DEPTH][BLEVEL[DEPTH]][0] = PC; /* [0]:start */
   BINFO[DEPTH][BLEVEL[DEPTH]][1] = ENDINFO[PC]; /* [1]:end */
+  BINFO[DEPTH][BLEVEL[DEPTH]][2] = 0; /* [2]:block(0) */
+
+  return;
+}
+
+void br_if ( void )
+{
+  unsigned int c, l;
+
+  l = IMEM[PC++];
+  c = Stack[StackPtr--];
+
+  if ( c != 0 ) {
+    if ( BINFO[DEPTH][BLEVEL[DEPTH] - l][2] == 0 /* block */ )
+      PC = BINFO[DEPTH][BLEVEL[DEPTH] - l][1];
+    else /* loop */
+      PC = BINFO[DEPTH][BLEVEL[DEPTH] - l][0];
+
+    BLEVEL[DEPTH] -= (l+1);
+  }
 
   return;
 }
@@ -273,6 +339,10 @@ void execute ( void )
       printf ("i32.sub\n");
       i32_sub ( );
       break;
+    case I32_AND:
+      printf ("i32.and\n");
+      i32_and ( );
+      break;
     case CALL:
       printf ("call\n");
       call ( );
@@ -280,6 +350,18 @@ void execute ( void )
     case BLOCK:
       printf ("block\n");
       block ( );
+      break;
+    case BR_IF:
+      printf ("br_if\n");
+      br_if ( );
+      break;
+    case I32_EQ:
+      printf ("i32.eq\n");
+      i32_eq ( );
+      break;
+    case I32_EQZ:
+      printf ("i32.eqz\n");
+      i32_eqz ( );
       break;
     default:
       printf ( "Undefined Instruction: 0x%2x\n", inst );
